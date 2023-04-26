@@ -1,0 +1,51 @@
+#cloud-config
+write_files:
+# Kernel modules required by kubernetes and istio-init, required for selinux enforcing instances using istio-init
+- content: |
+    br_netfilter
+    overlay
+    xt_REDIRECT
+    xt_owner
+    xt_statistic 
+  owner: root:root
+  path: /etc/modules
+  permissions: '0644'
+# Prevent Canal Problems
+- content: |
+    [keyfile]
+    unmanaged-devices=interface-name:cali*;interface-name:flannel*
+  owner: root:root
+  path: /etc/NetworkManager/conf.d/rke2-canal.conf
+  permissions: '0644'
+# CIS 1.5 Fix
+- content: |
+    vm.panic_on_oom      = 0
+    vm.overcommit_memory = 1
+    kernel.panic         = 10
+    kernel.panic_on_oops = 1
+  owner: root:root
+  path: /etc/sysctl.d/60-rke2-cis.conf
+  permissions: '0644'
+# file watchers
+- content: |
+    sysctl fs.inotify.max_user_instances=8192
+    sysctl fs.inotify.max_user_watches=524288
+  owner: root:root
+  path: /etc/sysctl.d/98-rke2-fs.conf
+  permissions: '0644'
+# Elasticsearch needs virtual memory maps
+# Running root container inside non-root requires user namespaces
+- content: |
+    sysctl -w vm.max_map_count=524288
+    sysctl -w user.max_user_namespaces=28633
+  owner: root:root
+  path: /etc/sysctl.d/70-rke2-moresysctls.conf
+  permission: '0644'
+# enable bridged traffic
+- content: |
+    net.bridge.bridge-nf-call-iptables  = 1
+    net.bridge.bridge-nf-call-ip6tables = 1
+    net.ipv4.ip_forward                 = 1
+  owner: root:root
+  path: /etc/sysctl.d/99-rke2-iptables.conf
+  permissions: '0644'
